@@ -80,6 +80,7 @@ export default function App() {
   const [error, setError] = useState("");
   const [copied, setCopied] = useState("");
   const [lang, setLang] = useState("es");
+  const [additionalContext, setAdditionalContext] = useState("");
   const [progress, setProgress] = useState(0);
   const progressRef = useRef(null);
 
@@ -118,7 +119,7 @@ export default function App() {
           model: "claude-sonnet-4-20250514",
           max_tokens: 1500,
           system: SYSTEM_PROMPT + langInstruction,
-          messages: [{ role: "user", content: `JD:\n${jd}\n\nCV:\n${cv}` }],
+          messages: [{ role: "user", content: `JD:\n${jd}\n\nCV:\n${cv}${additionalContext.trim() ? `\n\nAdditional context from candidate (prioritize when scoring and writing the verdict):\n${additionalContext.trim()}` : ""}` }],
         }),
       });
       const data = await res.json();
@@ -189,6 +190,17 @@ export default function App() {
             style={{ ...s.mono, width: "100%", background: "#0d0d0d", border: "1px solid #1a1a1a", borderRadius: "8px", padding: "14px", color: "#666", fontSize: "11px", lineHeight: 1.6, resize: "vertical", minHeight: "200px", marginTop: "8px" }}
           />
         )}
+      </div>
+
+      {/* Additional context */}
+      <div style={{ marginBottom: "1.5rem" }}>
+        <label style={s.label}>Contexto adicional (opcional)</label>
+        <textarea
+          value={additionalContext}
+          onChange={(e) => setAdditionalContext(e.target.value)}
+          placeholder="Ej: mi experiencia en ML clásico es baja pero en sistemas agenticos y LLMs en producción es alta. Tengo 3 proyectos agenticos en producción..."
+          style={{ ...s.mono, width: "100%", background: "#111", border: "1px solid #1e1e1e", borderRadius: "8px", padding: "14px", color: "#ccc", fontSize: "12px", lineHeight: 1.7, resize: "vertical", minHeight: "80px" }}
+        />
       </div>
 
       {/* Button */}

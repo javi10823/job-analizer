@@ -37,6 +37,25 @@ El string `MY_CV` en `App.jsx` contiene el CV de Javier Olivieri hardcodeado. Es
 - `keywords_match[]`, `keywords_gap[]`
 - `outreach` (mensaje listo para copiar, en el idioma seleccionado globalmente)
 
+## Language switch (ES / EN)
+Toggle en el header. Controla el idioma de **todo** el output de Claude (verdict, summary, checks, keywords, outreach). Se implementa appendeando una instrucción de idioma al `SYSTEM_PROMPT` al momento del call:
+- ES: "Respond entirely in Spanish…" (excepción: keywords técnicos quedan en inglés)
+- EN: "Respond entirely in English."
+Reemplaza el viejo toggle ES/EN que solo afectaba outreach. Ahora hay un solo campo `outreach` en el JSON (no más `outreach_es`/`outreach_en`).
+
+## Progress bar
+Barra de progreso fake que aparece debajo del botón durante el análisis:
+- `setInterval` cada 100ms, curva exponencial 0→85% en ~8 segundos
+- Salta a 100% cuando la API responde, desaparece tras 300ms
+- Color: `#4ade80` (mismo verde de scores positivos), 4px de alto, redondeada
+- El botón muestra "Analizando..." (disabled) mientras la barra está activa
+
+## Contexto adicional
+Textarea opcional entre el CV toggle y el botón de analizar. Permite al candidato agregar contexto libre (ej: aclarar experiencia específica, proyectos relevantes no listados en el CV).
+- Estado: `additionalContext`, vacío por defecto
+- Si tiene contenido, se appendea al user message después del CV: `"\n\nAdditional context from candidate (prioritize when scoring and writing the verdict):\n{additionalContext}"`
+- Si está vacío, no se envía nada extra
+
 ## Modelo usado
 `claude-sonnet-4-20250514` — no cambiar a otro modelo sin preguntar.
 
