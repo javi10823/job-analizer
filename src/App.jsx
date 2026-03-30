@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const MY_CV = `Javier Olivieri — AI Consultant · Agentic Systems & Automation Architect
 Location: Rosario, Argentina | Available: Remote · USA / Europe / South America
@@ -55,8 +55,7 @@ const SYSTEM_PROMPT = `You are a brutally honest career advisor. Given a job des
   ],
   "keywords_match": ["<keyword from JD found in CV>"],
   "keywords_gap": ["<keyword from JD missing in CV>"],
-  "outreach_es": "<ready-to-send message in Spanish, 4-5 short paragraphs, direct tone, no generic openers, references the marble AI agent project as a concrete example when relevant>",
-  "outreach_en": "<same in English>"
+  "outreach": "<ready-to-send message, 4-5 short paragraphs, direct tone, no generic openers, references the marble AI agent project as a concrete example when relevant>"
 }
 
 Rules: 6-10 checks covering remote/location, required skills, gaps, strategic fit, compensation if mentioned, competition if mentioned. keywords_match and keywords_gap should be concise single concepts. Outreach must feel human and specific — not corporate.`;
@@ -81,6 +80,8 @@ export default function App() {
   const [error, setError] = useState("");
   const [copied, setCopied] = useState("");
   const [lang, setLang] = useState("es");
+  const [progress, setProgress] = useState(0);
+  const progressRef = useRef(null);
 
   const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
 
@@ -90,7 +91,21 @@ export default function App() {
     setLoading(true);
     setError("");
     setResult(null);
+    setProgress(0);
+
+    const startTime = Date.now();
+    progressRef.current = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const target = 85;
+      const duration = 8000;
+      const p = Math.min(target, target * (1 - Math.exp(-3 * elapsed / duration)));
+      setProgress(Math.round(p));
+    }, 100);
+
     try {
+      const langInstruction = lang === "es"
+        ? "\n\nRespond entirely in Spanish. All fields (verdict, summary, checks labels and notes, keywords) must be in Spanish. Only exception: keep keyword terms in their original technical English (e.g. 'n8n', 'RAG pipelines')."
+        : "\n\nRespond entirely in English.";
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
@@ -102,7 +117,7 @@ export default function App() {
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
           max_tokens: 1500,
-          system: SYSTEM_PROMPT,
+          system: SYSTEM_PROMPT + langInstruction,
           messages: [{ role: "user", content: `JD:\n${jd}\n\nCV:\n${cv}` }],
         }),
       });
@@ -114,8 +129,14 @@ export default function App() {
     } catch (e) {
       setError("Error al analizar: " + e.message);
     }
-    setLoading(false);
+    clearInterval(progressRef.current);
+    setProgress(100);
+    setTimeout(() => { setProgress(0); setLoading(false); }, 300);
   };
+
+  useEffect(() => {
+    return () => { if (progressRef.current) clearInterval(progressRef.current); };
+  }, []);
 
   const copy = (text, key) => {
     navigator.clipboard.writeText(text);
@@ -127,9 +148,18 @@ export default function App() {
     <div style={s.page}>
       {/* Header */}
       <div style={{ marginBottom: "2rem", borderBottom: "1px solid #1a1a1a", paddingBottom: "1.25rem" }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: "12px" }}>
-          <span style={{ fontSize: "22px", fontWeight: 600, color: "#fff", letterSpacing: "-0.03em" }}>JobMatch</span>
-          <span style={{ ...s.mono, fontSize: "11px", color: "#444", letterSpacing: "0.1em" }}>by DevLabs</span>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: "12px" }}>
+            <span style={{ fontSize: "22px", fontWeight: 600, color: "#fff", letterSpacing: "-0.03em" }}>JobMatch</span>
+            <span style={{ ...s.mono, fontSize: "11px", color: "#444", letterSpacing: "0.1em" }}>by DevLabs</span>
+          </div>
+          <div style={{ display: "flex", gap: "4px" }}>
+            {["es", "en"].map((l) => (
+              <button key={l} onClick={() => setLang(l)} style={{ background: lang === l ? "#1e1e1e" : "none", border: "1px solid #222", borderRadius: "6px", color: lang === l ? "#e2e2e2" : "#555", fontSize: "11px", padding: "4px 12px", cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: "'DM Sans', sans-serif" }}>
+                {l.toUpperCase()}
+              </button>
+            ))}
+          </div>
         </div>
         <p style={{ fontSize: "12px", color: "#555", marginTop: "4px" }}>
           Pegá el JD · Analizá el fit · Decidí en 30 segundos
@@ -165,10 +195,20 @@ export default function App() {
       <button
         onClick={analyze}
         disabled={loading || !jd.trim()}
-        style={{ width: "100%", padding: "14px", background: loading ? "#0f0f0f" : "#161616", border: "1px solid #2a2a2a", borderRadius: "8px", color: loading || !jd.trim() ? "#444" : "#e2e2e2", fontSize: "13px", fontFamily: "'DM Sans', sans-serif", fontWeight: 500, cursor: loading || !jd.trim() ? "not-allowed" : "pointer", letterSpacing: "0.05em", marginBottom: "2rem", transition: "all 0.15s" }}
+        style={{ width: "100%", padding: "14px", background: loading ? "#0f0f0f" : "#161616", border: "1px solid #2a2a2a", borderRadius: "8px", color: loading || !jd.trim() ? "#444" : "#e2e2e2", fontSize: "13px", fontFamily: "'DM Sans', sans-serif", fontWeight: 500, cursor: loading || !jd.trim() ? "not-allowed" : "pointer", letterSpacing: "0.05em", marginBottom: loading ? "8px" : "2rem", transition: "all 0.15s" }}
       >
-        {loading ? "Analizando con Claude..." : "→ Analizar fit"}
+        {loading ? "Analizando..." : "→ Analizar fit"}
       </button>
+      {loading && (
+        <div style={{ marginBottom: "2rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
+            <div style={{ flex: 1, height: "4px", background: "#1e1e1e", borderRadius: "2px", overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${progress}%`, background: "#4ade80", borderRadius: "2px", transition: "width 0.15s ease-out" }} />
+            </div>
+            <span style={{ ...s.mono, fontSize: "11px", color: "#4ade80", minWidth: "32px", textAlign: "right" }}>{progress}%</span>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div style={{ background: "#1a0a0a", border: "1px solid #3a1a1a", borderRadius: "8px", padding: "12px 16px", color: "#f87171", fontSize: "12px", marginBottom: "1.5rem", ...s.mono }}>
@@ -230,22 +270,13 @@ export default function App() {
 
           {/* Outreach */}
           <div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px", flexWrap: "wrap", gap: "8px" }}>
-              <div style={s.sectionTitle}>Mensaje de outreach</div>
-              <div style={{ display: "flex", gap: "6px" }}>
-                {["es", "en"].map((l) => (
-                  <button key={l} onClick={() => setLang(l)} style={{ background: lang === l ? "#1e1e1e" : "none", border: "1px solid #222", borderRadius: "6px", color: lang === l ? "#e2e2e2" : "#555", fontSize: "11px", padding: "4px 12px", cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                    {l.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <div style={{ ...s.sectionTitle, marginBottom: "10px" }}>Mensaje de outreach</div>
             <div style={{ ...s.card, padding: "1rem 1.25rem", position: "relative" }}>
               <pre style={{ fontSize: "13px", color: "#aaa", lineHeight: 1.8, whiteSpace: "pre-wrap", wordBreak: "break-word", fontFamily: "'DM Sans', sans-serif", paddingRight: "60px" }}>
-                {lang === "es" ? result.outreach_es : result.outreach_en}
+                {result.outreach}
               </pre>
               <button
-                onClick={() => copy(lang === "es" ? result.outreach_es : result.outreach_en, "msg")}
+                onClick={() => copy(result.outreach, "msg")}
                 style={{ position: "absolute", top: "12px", right: "12px", background: "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: "6px", color: copied === "msg" ? "#4ade80" : "#666", fontSize: "11px", padding: "4px 10px", cursor: "pointer" }}
               >
                 {copied === "msg" ? "✓" : "Copiar"}

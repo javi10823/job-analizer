@@ -35,7 +35,7 @@ El string `MY_CV` en `App.jsx` contiene el CV de Javier Olivieri hardcodeado. Es
 - `summary` (2-3 oraciones)
 - `checks[]` (6-10 items con status 'ok'|'warn'|'no')
 - `keywords_match[]`, `keywords_gap[]`
-- `outreach_es`, `outreach_en` (mensajes listos para copiar)
+- `outreach` (mensaje listo para copiar, en el idioma seleccionado globalmente)
 
 ## Modelo usado
 `claude-sonnet-4-20250514` — no cambiar a otro modelo sin preguntar.
